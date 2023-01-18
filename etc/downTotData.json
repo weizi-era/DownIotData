@@ -1,0 +1,23 @@
+{
+	"iot": [
+		{
+			"name": "FAEE-Rtd",
+			"ioturl": "http://fission-jiahuayun.querycap.com/1182261009906139138/v4/1504385848815403012/event",
+			"iotmn": "220101DH4G0055",
+			"iotcode":["FAEE-Rtd"],
+			"calctype": 1,
+			"calcparam": [1],
+			"calcinterval": 300
+		}
+	],
+	"db": {
+		"carbonId" : "0000",
+		"meterId" : "0",
+		"meterType": "0",
+		"flag": "1",
+		"deviceType" : "4",
+		"statType": "5",
+		"localdbtype": 1,
+		"localdburl": "root:Rockontrol_00123@tcp(192.168.205.6:8900)/iec_energy?charset=utf8\u0026parseTime=True\u0026loc=UTC"
+	}
+}
