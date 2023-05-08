@@ -34,6 +34,7 @@ type IotConfig struct {
 	Calctype     int      `json:"calctype"`
 	Calcparam    []int    `json:"calcparam"`
 	Calcinterval int      `json:"calcinterval"`
+	TransRatio   float64  `json:"transRatio"`
 }
 
 type DbConfig struct {
@@ -142,20 +143,18 @@ func main() {
 
 }
 
-func GetDateTime(date string) int64 {
+func GetDateTime(date string, layout string) int64 {
 
 	loc, _ := time.LoadLocation("Local")
-	//日期当天0点时间戳
-	zeroTime := date + " 00:00:00"
-	//fmt.Println("当前时间:", zeroTime)
-
-	zeroTimeStamp, _ := time.ParseInLocation("2006-01-02 15:04:05", zeroTime, loc)
-
-	//日期当天23时59分时间戳
-	/*endDate := date + " 23:59:59"
-	end, _ := time.ParseInLocation("2006-01-02_15:04:05", endDate, loc)*/
+	zeroTimeStamp, _ := time.ParseInLocation(layout, date, loc)
 
 	return zeroTimeStamp.Unix()
+}
+
+func GetMonthZeroStamp(month time.Month) int64 {
+	now := time.Now()
+	lastMonth := time.Date(now.Year(), month, 1, 0, 0, 0, 0, time.Local)
+	return lastMonth.Unix()
 }
 
 func GetInfoAndInsert(dataPicker *DataPickerStFctsdb) {
@@ -165,68 +164,112 @@ func GetInfoAndInsert(dataPicker *DataPickerStFctsdb) {
 	var currentTime string
 	var currentZeroStamp int64
 
+	var iotCodeValues []float64
+	var faeeRtdArr []float64
+	var iaeeRtdArr []float64
+
+	var faeeRtdSum float64
+	var iaeeRtdSum float64
+	var sumArr []float64
+
 	var tempDay = 0
+
+	sumIotCode := []string{"FAEE-Sum", "IAEE-Sum"}
 
 	for {
 		currentTime = time.Now().Format("2006-01-02")
-		currentZeroStamp = GetDateTime(currentTime)
+		// 当天零点时间戳
+		currentZeroStamp = GetDateTime(currentTime, "2006-01-02")
 		day := time.Now().Day()
+		month := time.Now().Month()
+
 		fmt.Println("day:", day)
 		if day != tempDay {
-			// 插入
-			startTime := strconv.FormatInt(currentZeroStamp-48*3600, 10)
-			endTime := strconv.FormatInt(currentZeroStamp, 10)
 
-			resp := httpClient(startTime, endTime, dataPicker.channelConfig.Iotmn)
+			// 进行月统计（每月1日）
+			if day == 1 {
+				for _, item := range faeeRtdArr {
+					faeeRtdSum += item
+				}
+				for _, item := range iaeeRtdArr {
+					iaeeRtdSum += item
+				}
 
-			fmt.Println("开始时间:", startTime)
-			fmt.Println("结束时间:", endTime)
-
-			lens := len(resp.InfraredData)
-
-			var u1 *InfraredData
-			var u2 *InfraredData
-
-			if lens > 0 {
-				if lens == 12 {
-					for i := range resp.InfraredData {
-						if i == 0 {
-							u1 = &resp.InfraredData[i]
-						}
-						if i == 6 {
-							u2 = &resp.InfraredData[i]
-						}
-					}
-				} else if lens == 24 {
-					for i := range resp.InfraredData {
-						if i == 0 {
-							u1 = &resp.InfraredData[i]
-						}
-						if i == 12 {
-							u2 = &resp.InfraredData[i]
-						}
+				sumArr = append(sumArr, faeeRtdSum, iaeeRtdSum)
+				for i := 0; i < len(dataPicker.channelConfig.Iotcode); i++ {
+					err := InsertDb(dataPicker,
+						GetMonthZeroStamp(month-1),
+						GetMonthZeroStamp(month),
+						sumIotCode[i],
+						sumArr[i])
+					if err != nil {
+						logrus.WithFields(logrus.Fields{"mn": dataPicker.channelConfig.Iotmn}).Error("insert error:", err)
+					} else {
+						logrus.WithFields(logrus.Fields{"mn": dataPicker.channelConfig.Iotmn}).Info("insert success")
 					}
 				}
 
-				temp := fmt.Sprintf("%.4f", u1.FAEERtd-u2.FAEERtd)
+				// 释放所有数组元素
+				faeeRtdArr = faeeRtdArr[:0]
+				faeeRtdArr = nil
+				iaeeRtdArr = iaeeRtdArr[:0]
+				iaeeRtdArr = nil
+				iotCodeValues = iotCodeValues[:0]
+				iotCodeValues = nil
+				sumArr = sumArr[:0]
+				sumArr = nil
+			}
+			// 插入
+			beforeYesterdayTime := strconv.FormatInt(currentZeroStamp-48*3600, 10)
+			yesterdayTime := strconv.FormatInt(currentZeroStamp-24*3600, 10)
+			todayTime := strconv.FormatInt(currentZeroStamp, 10)
 
-				dataPicker.infraredData.FAEERtd, _ = strconv.ParseFloat(temp, 64)
-				dataPicker.infraredData.EemeidRtd = u1.EemeidRtd
-				fmt.Println("电表消耗量:", dataPicker.infraredData.FAEERtd)
-				err := InsertDb(dataPicker, startTime, endTime)
+			resp1 := httpClient(yesterdayTime, todayTime, dataPicker.channelConfig.Iotmn)
+			resp2 := httpClient(beforeYesterdayTime, yesterdayTime, dataPicker.channelConfig.Iotmn)
+
+			yesterdayObj := resp1.InfraredData[0]
+			beforeYesterdayObj := resp2.InfraredData[0]
+
+			// 判断正向有功总电能是否为无效值
+			//	if u1.FAEERtd != -100 && u2.FAEERtd != -100 {
+			temp1 := fmt.Sprintf("%.4f", (yesterdayObj.FAEERtd-beforeYesterdayObj.FAEERtd)*dataPicker.channelConfig.TransRatio) // 2023-05-05 add transRatio
+			dataPicker.infraredData.FAEERtd, _ = strconv.ParseFloat(temp1, 64)
+			dataPicker.infraredData.EemeidRtd = yesterdayObj.EemeidRtd
+			faeeRtdArr = append(faeeRtdArr, dataPicker.infraredData.FAEERtd)
+			logrus.WithFields(logrus.Fields{"mn": dataPicker.channelConfig.Iotmn, "FAEERtd": dataPicker.infraredData.FAEERtd})
+			fmt.Println("电表消耗量(正向有功总电能):", dataPicker.infraredData.FAEERtd)
+			//	}
+
+			// 判断反向有功总电能是否为无效值
+			//	if u1.IAEERtd != -100 && u2.IAEERtd != -100 {
+			temp2 := fmt.Sprintf("%.4f", (yesterdayObj.IAEERtd-beforeYesterdayObj.IAEERtd)*dataPicker.channelConfig.TransRatio) // 2023-05-05 add transRatio
+			dataPicker.infraredData.IAEERtd, _ = strconv.ParseFloat(temp2, 64)
+			dataPicker.infraredData.EemeidRtd = yesterdayObj.EemeidRtd
+			iaeeRtdArr = append(iaeeRtdArr, dataPicker.infraredData.IAEERtd)
+			logrus.WithFields(logrus.Fields{"mn": dataPicker.channelConfig.Iotmn, "IAEERtd": dataPicker.infraredData.IAEERtd})
+			fmt.Println("电表消耗量(反向有功总电能):", dataPicker.infraredData.IAEERtd)
+			//	}
+			iotCodeValues = append(iotCodeValues, dataPicker.infraredData.FAEERtd, dataPicker.infraredData.IAEERtd)
+			for i := 0; i < len(dataPicker.channelConfig.Iotcode); i++ {
+				err := InsertDb(dataPicker,
+					GetDateTime(beforeYesterdayObj.DataTime, "20060102150405"),
+					GetDateTime(yesterdayObj.DataTime, "20060102150405"),
+					dataPicker.channelConfig.Iotcode[i],
+					iotCodeValues[i])
 				if err != nil {
 					logrus.WithFields(logrus.Fields{"mn": dataPicker.channelConfig.Iotmn}).Error("insert error:", err)
 				} else {
 					logrus.WithFields(logrus.Fields{"mn": dataPicker.channelConfig.Iotmn}).Info("insert success")
 				}
-
-			} else {
-				time.Sleep(10 * time.Second)
-				continue
 			}
+
+			//清空iotCodeValues数组，第二天重新写入
+			iotCodeValues = iotCodeValues[:0]
+			iotCodeValues = nil
 
 			// 赋值tempDay
 			tempDay = day
+
 		} else {
 			fmt.Println("今天已经插入过数据了")
 		}

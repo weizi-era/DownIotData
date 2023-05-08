@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql/driver"
 	"fmt"
-	"strconv"
-
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
@@ -78,10 +76,10 @@ type DataPickerStFctsdb struct {
 }
 
 // InsertDb  插入数据
-func InsertDb(p *DataPickerStFctsdb, startTime string, endTime string) error {
+func InsertDb(p *DataPickerStFctsdb, startTime int64, endTime int64, iotCode string, value float64) error {
 
-	start, _ := strconv.ParseInt(startTime, 10, 64)
-	end, _ := strconv.ParseInt(endTime, 10, 64)
+	//start, _ := strconv.ParseInt(startTime, 10, 64)
+	//end, _ := strconv.ParseInt(endTime, 10, 64)
 
 	if p.gormDB == nil {
 		err := p.InitGormDB()
@@ -98,18 +96,18 @@ func InsertDb(p *DataPickerStFctsdb, startTime string, endTime string) error {
 		newInfo.MeterId = p.dbConfig.MeterId
 		newInfo.MeterType = p.dbConfig.MeterType
 		newInfo.StatType = p.dbConfig.StatType
-		newInfo.Rkkey = p.channelConfig.Name
-		newInfo.Dvalue = p.infraredData.FAEERtd
+		newInfo.Rkkey = iotCode
+		newInfo.Dvalue = value / 1000
 		newInfo.DeviceId = p.infraredData.EemeidRtd
 		newInfo.CreateTime = time.Now().UnixNano()
-		newInfo.BeginTime = start * 1e9
-		newInfo.EndTime = end * 1e9
+		newInfo.BeginTime = startTime * 1e9
+		newInfo.EndTime = endTime * 1e9
 		newInfo.Upload1 = 1
 		newInfo.Upload2 = 1
 		newInfo.Upload3 = 1
 		newInfo.Valid = 0
 		newInfo.Id = uuid.New().String()
-		newInfo.Time = time.Now().UTC()
+		newInfo.Time = time.Now().UTC().Truncate(time.Millisecond)
 
 		p.gormDB = p.gormDB.Create(&newInfo)
 		if p.gormDB.Error != nil {
@@ -134,7 +132,7 @@ func QueryDb(p *DataPickerStFctsdb) ([]RkdataQueryFctsdbInfo, error) {
 	var info []RkdataQueryFctsdbInfo
 	var result *gorm.DB
 
-	result = p.gormDB.Where("rkkey = ?", p.channelConfig.Name).Find(&info)
+	result = p.gormDB.Where("rkkey=?", p.channelConfig.Name).Find(&info)
 	if result.Error != nil {
 		logrus.WithFields(logrus.Fields{"err": result.Error}).Error("DataPickerStFctsdb query db error")
 		return nil, result.Error
