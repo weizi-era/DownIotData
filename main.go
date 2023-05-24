@@ -108,7 +108,6 @@ func main() {
 			dataPicker.Id = i
 			dataPicker.ChannelConfig = &model.SysConfig.IotConfig[i]
 			dataPicker.DbConfig = &model.SysConfig.DbConfig
-
 			go service.GetInfoAndInsertFctsdb(&dataPicker, ratioArr[i])
 		} else if strings.Contains(model.SysConfig.DbConfig.Localdburl, "3306") {
 			var dataPicker db.DataPickerStMySQL
