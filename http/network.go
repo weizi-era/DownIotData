@@ -1,6 +1,7 @@
-package main
+package http
 
 import (
+	"DownIotData/model"
 	"encoding/json"
 	"github.com/asmcos/requests"
 	_ "github.com/asmcos/requests"
@@ -33,7 +34,11 @@ type InfraredData struct {
 	MN            string  `json:"MN"`
 }
 
-func httpClient(startTime string, endTime string, mn string) ResponseInfraredData {
+type TransRatio struct {
+	Value string `json:"value"`
+}
+
+func HttpClient(startTime string, endTime string, mn string) ResponseInfraredData {
 
 	var data ResponseInfraredData
 
@@ -46,7 +51,7 @@ func httpClient(startTime string, endTime string, mn string) ResponseInfraredDat
 		"EndTime":   endTime,
 		"MN":        mn,
 	}
-	response, err := requests.Get(g_SysConfig.IotConfig[0].Ioturl, h, req)
+	response, err := requests.Get(model.SysConfig.IotConfig[0].Ioturl, h, req)
 
 	if err != nil {
 		logrus.Errorf("network request error:", err)
@@ -58,4 +63,31 @@ func httpClient(startTime string, endTime string, mn string) ResponseInfraredDat
 	}
 
 	return data
+}
+
+func GetTransRatio(mn string) TransRatio {
+
+	var transRatio TransRatio
+	h := requests.Header{
+		"Authorization": authorization,
+	}
+
+	req := requests.Params{
+		"productID":   "1504385848815403012",
+		"propertyKey": "Trans_Ratio",
+		"mn":          mn,
+	}
+
+	response, err := requests.Get(model.SysConfig.IotConfig[0].TransRatioUrl, h, req)
+
+	if err != nil {
+		logrus.Errorf("network request error:", err)
+	}
+
+	err2 := json.Unmarshal(response.Content(), &transRatio)
+	if err2 != nil {
+		logrus.Errorf("IOT data parse error:", err2)
+	}
+
+	return transRatio
 }

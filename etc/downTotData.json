@@ -3,42 +3,42 @@
 		{
 			"name": "FAEE-Rtd",
 			"ioturl": "http://fission-jiahuayun.querycap.com/1182261009906139138/v4/1504385848815403012/event",
+			"transRatioUrl": "https://iot-api-ext--jiahuayun.rockontrol.com//iot-api-proxy-gateway/dms/property/v0/device/0/extra-value",
 			"iotmn": "220101DH4G0049",
 			"iotcode":["T00001"],
 			"calctype": 1,
 			"calcparam": [1],
-			"calcinterval": 300,
-			"transRatio": 10800.00
+			"calcinterval": 300
 		},
 		{
 			"name": "FAEE-Rtd",
 			"ioturl": "http://fission-jiahuayun.querycap.com/1182261009906139138/v4/1504385848815403012/event",
+			"transRatioUrl": "https://iot-api-ext--jiahuayun.rockontrol.com//iot-api-proxy-gateway/dms/property/v0/device/0/extra-value",
 			"iotmn": "220101DH4G0055",
 			"iotcode":["T00002", "T00003"],
 			"calctype": 1,
 			"calcparam": [1],
-			"calcinterval": 300,
-			"transRatio": 13200.00
+			"calcinterval": 300
 		},
 		{
 			"name": "FAEE-Rtd",
 			"ioturl": "http://fission-jiahuayun.querycap.com/1182261009906139138/v4/1504385848815403012/event",
+			"transRatioUrl": "https://iot-api-ext--jiahuayun.rockontrol.com//iot-api-proxy-gateway/dms/property/v0/device/0/extra-value",
 			"iotmn": "220101DH4G0054",
 			"iotcode":["T00004", "T00005"],
 			"calctype": 1,
 			"calcparam": [1],
-			"calcinterval": 300,
-			"transRatio": 28000.00
+			"calcinterval": 300
 		},
 		{
 			"name": "FAEE-Rtd",
 			"ioturl": "http://fission-jiahuayun.querycap.com/1182261009906139138/v4/1504385848815403012/event",
+			"transRatioUrl": "https://iot-api-ext--jiahuayun.rockontrol.com//iot-api-proxy-gateway/dms/property/v0/device/0/extra-value",
 			"iotmn": "220101DH4G0051",
 			"iotcode":["T00006"],
 			"calctype": 1,
 			"calcparam": [1],
-			"calcinterval": 300,
-			"transRatio": 25200.00
+			"calcinterval": 300
 		}
 	],
 	"db": {
@@ -49,6 +49,6 @@
 		"deviceType" : "4",
 		"statType": "5",
 		"localdbtype": 1,
-		"localdburl": "root:Rockontrol_00123@tcp(127.0.0.1:8900)/iec_energy?charset=utf8\u0026parseTime=True\u0026loc=UTC"
+		"localdburl": "root:Rockontrol_00123@tcp(192.168.206.6:8900)/iec_energy?charset=utf8\u0026parseTime=True\u0026loc=UTC"
 	}
 }

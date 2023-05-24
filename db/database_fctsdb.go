@@ -1,6 +1,8 @@
-package main
+package db
 
 import (
+	"DownIotData/http"
+	"DownIotData/model"
 	"database/sql/driver"
 	"fmt"
 	"github.com/google/uuid"
@@ -68,15 +70,15 @@ func (r *RkdataQueryFctsdbInfo) TableName() string {
 }
 
 type DataPickerStFctsdb struct {
-	id            int
-	infraredData  InfraredData
-	channelConfig *IotConfig
-	dbConfig      *DbConfig
+	Id            int
+	InfraredData  http.InfraredData
+	ChannelConfig *model.IotConfig
+	DbConfig      *model.DbConfig
 	gormDB        *gorm.DB
 }
 
 // InsertDb  插入数据
-func InsertDb(p *DataPickerStFctsdb, startTime int64, endTime int64, iotCode string, value float64) error {
+func (p *DataPickerStFctsdb) InsertDb(startTime int64, endTime int64, iotCode string, value float64) error {
 
 	//start, _ := strconv.ParseInt(startTime, 10, 64)
 	//end, _ := strconv.ParseInt(endTime, 10, 64)
@@ -90,15 +92,15 @@ func InsertDb(p *DataPickerStFctsdb, startTime int64, endTime int64, iotCode str
 
 	{
 		var newInfo RkdataQueryFctsdbInfo
-		newInfo.CarbonId = p.dbConfig.CarbonId
-		newInfo.Flag = p.dbConfig.Flag
-		newInfo.DeviceType = p.dbConfig.DeviceType
-		newInfo.MeterId = p.dbConfig.MeterId
-		newInfo.MeterType = p.dbConfig.MeterType
-		newInfo.StatType = p.dbConfig.StatType
+		newInfo.CarbonId = p.DbConfig.CarbonId
+		newInfo.Flag = p.DbConfig.Flag
+		newInfo.DeviceType = p.DbConfig.DeviceType
+		newInfo.MeterId = p.DbConfig.MeterId
+		newInfo.MeterType = p.DbConfig.MeterType
+		newInfo.StatType = p.DbConfig.StatType
 		newInfo.Rkkey = iotCode
 		newInfo.Dvalue = value / 1000
-		newInfo.DeviceId = p.infraredData.EemeidRtd
+		newInfo.DeviceId = p.InfraredData.EemeidRtd
 		newInfo.CreateTime = time.Now().UnixNano()
 		newInfo.BeginTime = startTime * 1e9
 		newInfo.EndTime = endTime * 1e9
@@ -107,7 +109,7 @@ func InsertDb(p *DataPickerStFctsdb, startTime int64, endTime int64, iotCode str
 		newInfo.Upload3 = 1
 		newInfo.Valid = 0
 		newInfo.Id = uuid.New().String()
-		newInfo.Time = time.Now().UTC().Truncate(time.Millisecond)
+		newInfo.Time = time.Now().UTC().Truncate(time.Second)
 
 		p.gormDB = p.gormDB.Create(&newInfo)
 		if p.gormDB.Error != nil {
@@ -120,7 +122,7 @@ func InsertDb(p *DataPickerStFctsdb, startTime int64, endTime int64, iotCode str
 }
 
 // QueryDb 查询数据
-func QueryDb(p *DataPickerStFctsdb) ([]RkdataQueryFctsdbInfo, error) {
+func (p *DataPickerStFctsdb) QueryDb() ([]RkdataQueryFctsdbInfo, error) {
 
 	if p.gormDB == nil {
 		err := p.InitGormDB()
@@ -132,7 +134,7 @@ func QueryDb(p *DataPickerStFctsdb) ([]RkdataQueryFctsdbInfo, error) {
 	var info []RkdataQueryFctsdbInfo
 	var result *gorm.DB
 
-	result = p.gormDB.Where("rkkey=?", p.channelConfig.Name).Find(&info)
+	result = p.gormDB.Where("rkkey=?", p.ChannelConfig.Name).Find(&info)
 	if result.Error != nil {
 		logrus.WithFields(logrus.Fields{"err": result.Error}).Error("DataPickerStFctsdb query db error")
 		return nil, result.Error
@@ -148,7 +150,7 @@ func (p *DataPickerStFctsdb) InitGormDB() error {
 		return nil
 	}
 
-	db, err := gorm.Open(mysql.Open(p.dbConfig.Localdburl), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(p.DbConfig.Localdburl), &gorm.Config{})
 	if err != nil {
 		logrus.WithFields(logrus.Fields{"err": err}).Error("DataPickerStFctsdb init gorm db error")
 		return err
